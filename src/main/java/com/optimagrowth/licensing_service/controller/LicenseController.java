@@ -2,11 +2,13 @@ package com.optimagrowth.licensing_service.controller;
 
 import com.optimagrowth.licensing_service.model.*;
 import com.optimagrowth.licensing_service.service.*;
+import org.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
@@ -17,15 +19,17 @@ public class LicenseController {
 
     @Autowired
     private LicenseService licenseService;
+    private static final Logger logger = LoggerFactory.getLogger(LicenseController.class);
 
-    @RequestMapping(value="/{licenseId}",method = RequestMethod.GET)
+    @RequestMapping(value="/{licenseId}/{clientType}",method = RequestMethod.GET)
     public ResponseEntity<License> getLicense(
             @PathVariable("organizationId") String organizationId,
-            @PathVariable("licenseId") String licenseId) {
+            @PathVariable("licenseId") String licenseId,
+            @PathVariable("clientType") String clientType) {
         License license = licenseService.getLicense(licenseId,
-                organizationId);
+                organizationId,clientType);
         license.add(linkTo(methodOn(LicenseController.class)
-                        .getLicense(organizationId, license.getLicenseId()))
+                        .getLicense(organizationId, license.getLicenseId(), clientType))
                         .withSelfRel(),
                 linkTo(methodOn(LicenseController.class)
                         .createLicense(organizationId, license, null))
@@ -38,8 +42,15 @@ public class LicenseController {
                         .withRel("deleteLicense"));
         return ResponseEntity.ok(license);
     }
+    @RequestMapping(value="/",method = RequestMethod.GET)
+                public List<License> getLicenses( @PathVariable("organizationId")
+                                      String organizationId) throws TimeoutException {
+        logger.debug("LicenseServiceController Correlation id: {}",1);
+
+        return licenseService.getLicensesByOrganization(organizationId);
+    }
     @PutMapping
-    public ResponseEntity<String> updateLicense(
+    public ResponseEntity<License> updateLicense(
             @PathVariable("organizationId")
             String organizationId,
             @RequestBody License request) {
@@ -47,7 +58,7 @@ public class LicenseController {
                 organizationId));
     }
     @PostMapping
-    public ResponseEntity<String> createLicense(
+    public ResponseEntity<License> createLicense(
             @PathVariable("organizationId") String organizationId,
             @RequestBody License request,
             @RequestHeader(value = "Accept-Language",required = false)
@@ -62,5 +73,6 @@ public class LicenseController {
         return ResponseEntity.ok(licenseService.deleteLicense(licenseId,
                 organizationId));
     }
+
 
 }
